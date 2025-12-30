@@ -1,0 +1,5 @@
+.DS_Store
+images/**/.git
+images/**/.github/
+images/**/node_modules/
+images/**/*.{md,txt,json,zip,rar,7z}
