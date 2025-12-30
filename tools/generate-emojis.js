@@ -14,20 +14,13 @@ function walk(dir) {
 }
 
 function encPath(p) {
-  // 保留子目录结构，同时对每段进行编码
-  return String(p)
-    .split(path.sep)
-    .map(s => encodeURIComponent(s))
-    .join('/');
+  return String(p).split(path.sep).map(s => encodeURIComponent(s)).join('/');
 }
 
 function toTags(file) {
   const base = path.basename(file).replace(/\.[^.]+$/, '');
   const parts = base.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  const folders = path.dirname(file)
-    .split(path.sep)
-    .filter(Boolean)
-    .slice(-2); // 取末尾两级目录做弱标签
+  const folders = path.dirname(file).split(path.sep).filter(Boolean).slice(-2);
   const tags = Array.from(new Set([...folders, ...parts])).slice(0, 8);
   return tags.length ? tags : [base];
 }
@@ -39,8 +32,7 @@ function main() {
     filename: path.basename(f),
     tags: toTags(f)
   }));
-  const out = { files: list };
-  fs.writeFileSync('emojis.json', JSON.stringify(out, null, 2));
+  fs.writeFileSync('emojis.json', JSON.stringify({ files: list }, null, 2));
   console.log(`Generated ${list.length} entries to emojis.json`);
 }
 
