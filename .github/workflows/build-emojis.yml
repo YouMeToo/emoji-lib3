@@ -1,0 +1,53 @@
+name: Build emojis.json
+on:
+  push:
+    paths:
+      - 'images/**'
+      - '.github/workflows/build-emojis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List image files
+        run: |
+          git ls-files images > files.txt
+          sed -n '1,20p' files.txt
+
+      - name: Generate emojis.json (jsDelivr links)
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - << 'PY'
+          import os, json, urllib.parse
+          owner, name = os.environ.get('REPO','').split('/')
+          files = []
+          with open('files.txt','r') as f:
+            for line in f:
+              p = line.strip()
+              ext = os.path.splitext(p)[1].lower()
+              if ext in {'.png','.jpg','.jpeg','.gif','.webp'}:
+                parts = [urllib.parse.quote(seg, safe='') for seg in p.split('/')]
+                enc = '/'.join(parts)
+                url = f'https://cdn.jsdelivr.net/gh/{owner}/{name}@main/{enc}'
+                base = os.path.basename(p)
+                tags = [os.path.splitext(base)[0]]
+                files.append({'url': url, 'filename': base, 'tags': tags})
+          with open('emojis.json','w',encoding='utf-8') as out:
+            json.dump({'files': files}, out, ensure_ascii=False, indent=2)
+          print('Generated entries:', len(files))
+          PY
+
+      - name: Commit and push emojis.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add emojis.json
+          git commit -m "build emojis.json" || echo "no changes"
+          git push
