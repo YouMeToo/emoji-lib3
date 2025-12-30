@@ -3,8 +3,12 @@ on:
   push:
     paths:
       - 'images/**'
+      - 'tools/generate-emojis.js'
       - '.github/workflows/generate-emojis.yml'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -17,33 +21,11 @@ jobs:
         with:
           node-version: '18'
       - name: Generate emojis.json
-        run: |
-          node -e "
-          const fs=require('fs'), path=require('path');
-          const repo=process.env.REPO||''; const [owner, name]=repo.split('/');
-          const walk=(dir)=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(d=>{
-            const p=path.join(dir,d.name); return d.isDirectory()?walk(p):p;
-          });
-          const enc=(s)=>encodeURIComponent(s).replace(/%2F/g,'/');
-          const files=(fs.existsSync('images')?walk('images'):[]).filter(f=>/\.(png|jpg|jpeg|gif|webp)$/i.test(f));
-          const toTags=(base)=>{
-            const n=base.replace(/\.[^.]+$/,'');
-            return Array.from(new Set(n.split(/[^\p{L}\p{N}]+/u).filter(Boolean))).slice(0,5);
-          };
-          const list=files.map(f=>{
-            const base=path.basename(f);
-            return {
-              url: `https://cdn.jsdelivr.net/gh/${owner}/${name}@main/${enc(f)}`,
-              filename: base,
-              tags: toTags(base)
-            };
-          });
-          fs.writeFileSync('emojis.json', JSON.stringify({ files: list }, null, 2));
-          "
+        run: node tools/generate-emojis.js
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add emojis.json
-          git commit -m "Auto-generate emojis.json" || echo "No changes"
+          git commit -m "Auto-generate emojis.json" || echo "No changes to commit"
           git push
