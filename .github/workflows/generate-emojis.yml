@@ -1,9 +1,8 @@
-name: Generate emojis.json
+name: Build emojis.json
 on:
   push:
     paths:
       - 'images/**'
-      - 'tools/generate-emojis.js'
       - '.github/workflows/generate-emojis.yml'
   workflow_dispatch:
 
@@ -13,19 +12,35 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '18'
       - name: Generate emojis.json
-        run: node tools/generate-emojis.js
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - << 'PY'
+          import os, json, urllib.parse
+          owner, name = os.environ.get('REPO','').split('/')
+          exts = {'.png','.jpg','.jpeg','.gif','.webp'}
+          files=[]
+          for root, _, fs in os.walk('images'):
+              for f in fs:
+                  ext = os.path.splitext(f)[1].lower()
+                  if ext in exts:
+                      rel = os.path.join(root, f)
+                      parts = [urllib.parse.quote(p, safe='') for p in rel.split(os.sep)]
+                      rel_enc = '/'.join(parts)
+                      url = f'https://cdn.jsdelivr.net/gh/{owner}/{name}@main/{rel_enc}'
+                      base = os.path.splitext(os.path.basename(f))[0]
+                      tags = (base.split())[:8] or [base]
+                      files.append({'url': url, 'filename': os.path.basename(f), 'tags': tags})
+          with open('emojis.json','w',encoding='utf-8') as fp:
+              json.dump({'files': files}, fp, ensure_ascii=False, indent=2)
+          PY
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add emojis.json
-          git commit -m "Auto-generate emojis.json" || echo "No changes to commit"
+          git commit -m "auto build emojis.json" || echo "no changes"
           git push
